@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мои задачи на день</title>
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/style.css">
+    
+    <!-- Библиотеки -->
+    <script src="libs/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Шапка -->
+        <div class="header">
+            <div class="title-section">
+                <h1>Just Do List</h1>
+                <div class="date-badge" id="currentDate" onclick="calendarModule.toggleCalendar()"></div>
+            </div>
+            <button class="add-button" onclick="tasksModule.toggleForm()" title="Добавить задачу">+</button>
+        </div>
+
+        <!-- Компактный календарь -->
+        <div class="mini-calendar" id="miniCalendar">
+            <div class="calendar-header">
+                <span class="calendar-month" id="calendarMonth">Февраль 2026</span>
+                <div class="calendar-nav">
+                    <button onclick="calendarModule.changeMonth(-1)">←</button>
+                    <button onclick="calendarModule.changeMonth(1)">→</button>
+                </div>
+            </div>
+            <div class="calendar-weekdays">
+                <span>Пн</span>
+                <span>Вт</span>
+                <span>Ср</span>
+                <span>Чт</span>
+                <span>Пт</span>
+                <span>Сб</span>
+                <span>Вс</span>
+            </div>
+            <div class="calendar-days" id="calendarDays"></div>
+        </div>
+
+        <!-- Статистика -->
+        <div class="stats-container">
+            <div class="stat-card">
+                <span>📊</span>
+                <span id="totalTasks">0</span>
+            </div>
+            <div class="stat-card">
+                <span>✅</span>
+                <span id="completedTasks">0</span>
+            </div>
+            <div class="stat-card">
+                <span>⏳</span>
+                <span id="pendingTasks">0</span>
+            </div>
+            <button class="excel-button" onclick="exportModule.exportToExcel()">
+                <span>📊</span> Скачать Excel-отчет
+            </button>
+        </div>
+
+        <!-- Прогресс бар -->
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+        </div>
+
+        <!-- Форма добавления задачи -->
+        <div class="task-form" id="taskForm">
+            <h3 style="margin-bottom: 15px; color: #555;">➕ Новая задача</h3>
+            
+            <div class="form-group">
+                <label>Название задачи *</label>
+                <input type="text" id="taskTitle" placeholder="Что нужно сделать?">
+            </div>
+
+            <div class="form-group">
+                <label>Описание</label>
+                <textarea id="taskDescription" placeholder="Подробности задачи..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Дата и время</label>
+                <input type="datetime-local" id="taskDateTime">
+            </div>
+
+            <div class="form-group">
+                <label>Приоритет</label>
+                <div class="priority-selector" id="prioritySelector">
+                    <div class="priority-option" data-priority="high" onclick="tasksModule.selectPriority('high')">🔴 Высокий</div>
+                    <div class="priority-option" data-priority="medium" onclick="tasksModule.selectPriority('medium')">🟡 Средний</div>
+                    <div class="priority-option" data-priority="low" onclick="tasksModule.selectPriority('low')">🟢 Низкий</div>
+                </div>
+            </div>
+
+            <!-- Подзадачи -->
+            <div class="subtasks-section">
+                <div class="subtasks-header">
+                    <h4>Подзадачи</h4>
+                    <button class="add-subtask-btn" onclick="tasksModule.addSubtaskField()" type="button">+</button>
+                </div>
+                <div id="subtasksContainer"></div>
+            </div>
+
+            <button class="save-btn" onclick="tasksModule.addTask()">Добавить задачу</button>
+        </div>
+
+        <!-- Фильтры -->
+        <div class="filters">
+            <button class="filter-btn active" onclick="tasksModule.filterTasks('all')" id="filterAll">Все</button>
+            <button class="filter-btn" onclick="tasksModule.filterTasks('pending')" id="filterPending">Активные</button>
+            <button class="filter-btn" onclick="tasksModule.filterTasks('completed')" id="filterCompleted">Выполненные</button>
+        </div>
+
+        <!-- Список задач -->
+        <div class="tasks-list" id="tasksList"></div>
+    </div>
+
+    <!-- Модальное окно редактирования -->
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <h2>✏️ Редактировать задачу</h2>
+            
+            <div class="form-group">
+                <label>Название</label>
+                <input type="text" id="editTitle">
+            </div>
+
+            <div class="form-group">
+                <label>Описание</label>
+                <textarea id="editDescription"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Дата и время</label>
+                <input type="datetime-local" id="editDateTime">
+            </div>
+
+            <div class="form-group">
+                <label>Приоритет</label>
+                <select id="editPriority">
+                    <option value="high">🔴 Высокий</option>
+                    <option value="medium">🟡 Средний</option>
+                    <option value="low">🟢 Низкий</option>
+                </select>
+            </div>
+
+            <!-- Секция подзадач для редактирования -->
+            <div class="subtasks-section">
+                <div class="subtasks-header">
+                    <h4>Подзадачи</h4>
+                    <button class="add-subtask-btn" onclick="tasksModule.addEditSubtaskField()" type="button">+</button>
+                </div>
+                <div id="editSubtasksContainer"></div>
+            </div>
+
+            <button class="save-btn" onclick="tasksModule.saveEdit()">Сохранить</button>
+            <button class="save-btn close-btn" onclick="tasksModule.closeModal()">Отмена</button>
+        </div>
+    </div>
+
+    <!-- JavaScript модули -->
+    <script src="js/calendar.js"></script>
+    <script src="js/tasks.js"></script>
+    <script src="js/export.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
