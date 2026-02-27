@@ -1,0 +1,763 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    padding: 30px;
+}
+
+/* Шапка с датой */
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.title-section {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+h1 {
+    color: #333;
+    font-size: 2em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+h1::before {
+    content: "📋";
+    font-size: 1.2em;
+}
+
+.date-badge {
+    background: #f0f0f0;
+    padding: 8px 16px;
+    border-radius: 20px;
+    color: #555;
+    font-weight: 500;
+    font-size: 0.9em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.date-badge:hover {
+    background: #e0e0e0;
+    transform: translateY(-2px);
+}
+
+.date-badge::before {
+    content: "📅";
+}
+
+/* Компактный календарь */
+.mini-calendar {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+    padding: 10px;        /* Уменьшаем внутренние отступы */
+    margin-bottom: 15px;  /* Уменьшаем внешний отступ */
+    border: 1px solid #e0e0e0;
+    display: none;
+    max-width: 320px;     /* Ограничиваем максимальную ширину */
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.mini-calendar.active {
+    display: block;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.calendar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    padding: 0 5px;
+}
+
+.calendar-month {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.95em; /* Уменьшаем шрифт */
+}
+
+.calendar-nav {
+    display: flex;
+    gap: 10px;
+}
+
+.calendar-nav button {
+    background: #f0f0f0;
+    border: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all 0.2s;
+}
+
+.calendar-nav button:hover {
+    background: #667eea;
+    color: white;
+}
+
+.calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    font-size: 0.7em;     /* Уменьшаем шрифт */
+    font-weight: 600;
+    color: #999;
+    margin-bottom: 3px;    /* Уменьшаем отступ */
+    max-width: 280px;      /* Ограничиваем ширину */
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.calendar-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    max-width: 280px; /* Ограничиваем ширину */
+    margin: 0 auto;
+}
+
+.calendar-day {
+    width: 36px;      /* Фиксированная ширина */
+    height: 36px;     /* Фиксированная высота */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85em;
+    cursor: pointer;
+    border-radius: 50%;
+    transition: all 0.2s;
+    background: white;
+    border: 1px solid transparent;
+    position: relative;
+    margin: 0 auto;   /* Центрируем в ячейке */
+}
+
+.calendar-day:hover {
+    background: #f0f0f0;
+    border-color: #667eea;
+}
+
+.calendar-day.today {
+    background: #667eea;
+    color: white;
+    font-weight: 600;
+}
+
+.calendar-day.selected {
+    border: 2px solid #667eea;
+    font-weight: 600;
+}
+
+.calendar-day.has-tasks::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    width: 4px;
+    height: 4px;
+    background: #e74c3c;
+    border-radius: 50%;
+}
+
+.calendar-day.empty {
+    cursor: default;
+    background: none;
+}
+
+.calendar-day.empty:hover {
+    background: none;
+    border-color: transparent;
+}
+
+/* Статистика и кнопки */
+.stats-container {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.stat-card {
+    background: #f8f9fa;
+    padding: 12px 20px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid #e0e0e0;
+}
+
+.stat-card span:first-child {
+    font-size: 1.2em;
+}
+
+.stat-card span:last-child {
+    font-weight: 600;
+    color: #667eea;
+}
+
+.excel-button {
+    background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+    transition: all 0.3s;
+    margin-left: auto;
+}
+
+.excel-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(39, 174, 96, 0.3);
+}
+
+/* Кнопка добавления */
+.add-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    font-size: 30px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    transition: all 0.3s;
+    flex-shrink: 0;
+}
+
+.add-button:hover {
+    transform: rotate(90deg) scale(1.1);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+}
+
+/* Форма добавления задачи */
+.task-form {
+    background: #f8f9fa;
+    padding: 0;
+    border-radius: 15px;
+    margin-bottom: 30px;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: all 0.3s ease-out;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.task-form.active {
+    padding: 25px;
+    max-height: 2000px;
+    opacity: 1;
+    margin-bottom: 30px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    color: #555;
+    font-weight: 500;
+    font-size: 0.9em;
+}
+
+input[type="text"],
+input[type="datetime-local"],
+textarea,
+select {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: border-color 0.3s;
+}
+
+textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.priority-selector {
+    display: flex;
+    gap: 10px;
+    margin-top: 5px;
+}
+
+.priority-option {
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 500;
+}
+
+.priority-option:hover {
+    background: #f0f0f0;
+}
+
+.priority-option.selected {
+    border-color: #667eea;
+    background: #667eea20;
+}
+
+.priority-option[data-priority="high"] {
+    color: #e74c3c;
+}
+.priority-option[data-priority="medium"] {
+    color: #f39c12;
+}
+.priority-option[data-priority="low"] {
+    color: #27ae60;
+}
+
+/* Подзадачи */
+.subtasks-section {
+    margin-top: 15px;
+    padding: 15px;
+    background: #f0f0f0;
+    border-radius: 8px;
+}
+
+.subtasks-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.subtasks-header h4 {
+    color: #555;
+    font-size: 0.95em;
+}
+
+.add-subtask-btn {
+    background: none;
+    border: none;
+    color: #667eea;
+    font-size: 20px;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+
+.add-subtask-btn:hover {
+    background: #667eea20;
+}
+
+.subtask-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    padding: 8px;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+}
+
+.subtask-item input[type="text"] {
+    flex: 1;
+    padding: 6px;
+    font-size: 0.9em;
+}
+
+.subtask-item input[type="datetime-local"] {
+    width: auto;
+    padding: 6px;
+    font-size: 0.9em;
+}
+
+.remove-subtask {
+    background: none;
+    border: none;
+    color: #e74c3c;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 0 5px;
+}
+
+.save-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+    margin-top: 15px;
+}
+
+.save-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+}
+
+/* Фильтры */
+.filters {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.filter-btn {
+    padding: 8px 16px;
+    border: 2px solid #e0e0e0;
+    border-radius: 20px;
+    background: white;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 500;
+}
+
+.filter-btn:hover {
+    border-color: #667eea;
+    color: #667eea;
+}
+
+.filter-btn.active {
+    background: #667eea;
+    border-color: #667eea;
+    color: white;
+}
+
+/* Список задач */
+.tasks-list {
+    list-style: none;
+    margin-top: 20px;
+}
+
+.task-item {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    margin-bottom: 15px;
+    padding: 15px 20px;
+    transition: all 0.3s;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.task-item:hover {
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    border-color: #667eea;
+}
+
+.task-item.completed {
+    opacity: 0.7;
+    background: #f8f9fa;
+}
+
+.task-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+}
+
+.task-checkbox {
+    width: 24px;
+    height: 24px;
+    margin-top: 2px;
+    cursor: pointer;
+    accent-color: #667eea;
+}
+
+.task-content {
+    flex: 1;
+}
+
+.task-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 5px;
+    flex-wrap: wrap;
+}
+
+.task-title {
+    font-weight: 600;
+    color: #333;
+    font-size: 1.1em;
+}
+
+.task-title.completed {
+    text-decoration: line-through;
+    color: #999;
+}
+
+.priority-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.7em;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.priority-badge.high {
+    background: #e74c3c20;
+    color: #e74c3c;
+    border: 1px solid #e74c3c;
+}
+
+.priority-badge.medium {
+    background: #f39c1220;
+    color: #f39c12;
+    border: 1px solid #f39c12;
+}
+
+.priority-badge.low {
+    background: #27ae6020;
+    color: #27ae60;
+    border: 1px solid #27ae60;
+}
+
+.task-description {
+    color: #666;
+    font-size: 0.9em;
+    margin-bottom: 8px;
+    word-break: break-word;
+}
+
+.task-meta {
+    display: flex;
+    gap: 15px;
+    font-size: 0.8em;
+    color: #999;
+    flex-wrap: wrap;
+}
+
+/* Подзадачи в списке */
+.task-subtasks {
+    margin-top: 10px;
+    margin-left: 40px;
+    padding-left: 15px;
+    border-left: 2px dashed #e0e0e0;
+}
+
+.task-subtasks .subtask-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    margin-bottom: 5px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.task-subtasks .subtask-item.completed span {
+    text-decoration: line-through;
+    color: #999;
+}
+
+.subtask-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.subtask-title {
+    flex: 1;
+    font-size: 0.9em;
+}
+
+.subtask-deadline {
+    font-size: 0.8em;
+    color: #e74c3c;
+}
+
+.task-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.action-btn {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 5px 8px;
+    border-radius: 6px;
+    transition: all 0.2s;
+    color: #666;
+}
+
+.action-btn:hover {
+    background: #f0f0f0;
+}
+
+.edit-btn:hover {
+    color: #667eea;
+}
+
+.delete-btn:hover {
+    color: #e74c3c;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 50px 20px;
+    color: #999;
+    background: #f8f9fa;
+    border-radius: 12px;
+    border: 2px dashed #e0e0e0;
+}
+
+.empty-state p {
+    margin-top: 10px;
+    font-size: 1.1em;
+}
+
+.empty-state::before {
+    content: "✅";
+    font-size: 48px;
+    display: block;
+    margin-bottom: 10px;
+    opacity: 0.5;
+}
+
+/* Модальное окно */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 15px;
+    width: 90%;
+    max-width: 600px;
+    animation: slideIn 0.3s ease;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-content h2 {
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.close-btn {
+    background: #e0e0e0;
+    color: #333;
+    margin-top: 10px;
+}
+
+.close-btn:hover {
+    background: #d0d0d0;
+    transform: none;
+    box-shadow: none;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 6px;
+    background: #f0f0f0;
+    border-radius: 3px;
+    margin: 20px 0;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 3px;
+    transition: width 0.3s;
+}
