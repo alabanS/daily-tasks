@@ -21,12 +21,12 @@ const Links = {
 
     getLinksForCategory(catId) {
         const childIds = this._getAllCategoryIds(catId);
-        return this.links.filter(l => childIds.includes(l.categoryId));
+        return this._data.links.filter(l => childIds.includes(l.categoryId));
     },
 
     _getAllCategoryIds(catId) {
         const result = [catId];
-        const children = this.categories.filter(c => c.parentId === catId);
+        const children = this._data.categories.filter(c => c.parentId === catId);
         children.forEach(child => {
             result.push(child.id);
             result.push(...this._getAllCategoryIds(child.id));
@@ -36,16 +36,16 @@ const Links = {
 
     getCategoryPath(catId) {
         const path = [];
-        let current = this.categories.find(c => c.id === catId);
+        let current = this._data.categories.find(c => c.id === catId);
         while (current) {
             path.unshift(current.name);
-            current = this.categories.find(c => c.id === current.parentId);
+            current = this._data.categories.find(c => c.id === current.parentId);
         }
         return path.join(' / ');
     },
 
     getCategoryName(catId) {
-        const cat = this.categories.find(c => c.id === catId);
+        const cat = this._data.categories.find(c => c.id === catId);
         return cat ? cat.name : '📁 Все ссылки';
     },
 
@@ -56,11 +56,11 @@ const Links = {
     saveCategory(data) {
         const isEdit = !!data.id;
         if (isEdit) {
-            const idx = this.categories.findIndex(c => c.id === data.id);
+            const idx = this._data.categories.findIndex(c => c.id === data.id);
             if (idx === -1) return false;
-            this.categories[idx] = { ...this.categories[idx], ...data };
+            this._data.categories[idx] = { ...this._data.categories[idx], ...data };
         } else {
-            this.categories.push({
+            this._data.categories.push({
                 id: Store.generateId(),
                 name: data.name.trim(),
                 parentId: data.parentId || null,
@@ -77,7 +77,7 @@ const Links = {
     deleteCategory(id) {
         console.log('🗑️ deleteCategory вызван с ID:', id);
         
-        const cat = this.categories.find(c => c.id === id);
+        const cat = this._data.categories.find(c => c.id === id);
         if (!cat) {
             Toast.show('Категория не найдена', 'error');
             return false;
@@ -85,7 +85,9 @@ const Links = {
         
         const catName = cat.name;
         const toDelete = this._getAllCategoryIds(id);
-        const linksCount = this.links.filter(l => toDelete.includes(l.categoryId)).length;
+        console.log('🔍 Будет удалено ID:', toDelete);
+        
+        const linksCount = this._data.links.filter(l => toDelete.includes(l.categoryId)).length;
         
         let message = `Удалить категорию "${catName}"`;
         if (toDelete.length > 1) {
@@ -98,17 +100,21 @@ const Links = {
         
         if (!confirm(message)) return false;
         
-        this.categories = this.categories.filter(c => !toDelete.includes(c.id));
-        const deletedLinks = this.links.filter(l => toDelete.includes(l.categoryId));
-        this.links = this.links.filter(l => !toDelete.includes(l.categoryId));
+        this._data.categories = this._data.categories.filter(c => !toDelete.includes(c.id));
+        console.log('🔍 Категорий осталось:', this._data.categories.length);
+        
+        const deletedLinks = this._data.links.filter(l => toDelete.includes(l.categoryId));
+        this._data.links = this._data.links.filter(l => !toDelete.includes(l.categoryId));
+        console.log('🔍 Ссылок удалено:', deletedLinks.length);
         
         if (this._selectedCategoryId && toDelete.includes(this._selectedCategoryId)) {
             this._selectedCategoryId = null;
         }
         
         if (Store.save(this._data)) {
-            console.log('✅ Категория удалена, перерисовка...');
+            console.log('✅ Данные сохранены');
             this.render();
+            
             let toastMsg = `Категория "${catName}" удалена`;
             if (toDelete.length > 1) {
                 toastMsg += ` (удалено ${toDelete.length - 1} дочерних категорий)`;
@@ -125,11 +131,11 @@ const Links = {
     saveLink(data) {
         const isEdit = !!data.id;
         if (isEdit) {
-            const idx = this.links.findIndex(l => l.id === data.id);
+            const idx = this._data.links.findIndex(l => l.id === data.id);
             if (idx === -1) return false;
-            this.links[idx] = { ...this.links[idx], ...data };
+            this._data.links[idx] = { ...this._data.links[idx], ...data };
         } else {
-            this.links.push({
+            this._data.links.push({
                 id: Store.generateId(),
                 title: data.title.trim(),
                 url: data.url.trim(),
@@ -146,14 +152,14 @@ const Links = {
     },
 
     deleteLink(id) {
-        const link = this.links.find(l => l.id === id);
+        const link = this._data.links.find(l => l.id === id);
         if (!link) return false;
         
         if (!confirm(`Удалить ссылку "${link.title}"?`)) return false;
         
-        const idx = this.links.findIndex(l => l.id === id);
+        const idx = this._data.links.findIndex(l => l.id === id);
         if (idx === -1) return false;
-        this.links.splice(idx, 1);
+        this._data.links.splice(idx, 1);
         if (Store.save(this._data)) {
             this.render();
             Toast.show(`Ссылка "${link.title}" удалена`, 'info');
@@ -212,7 +218,7 @@ const Links = {
                 
                 const targetNode = e.target.closest('.node');
                 if (targetNode && this._draggedCategoryId && this._draggedCategoryId !== targetNode.dataset.id) {
-                    const isTargetRoot = this.categories.find(c => c.id === targetNode.dataset.id)?.parentId === null;
+                    const isTargetRoot = this._data.categories.find(c => c.id === targetNode.dataset.id)?.parentId === null;
                     if (isTargetRoot) {
                         document.querySelectorAll('.tree-item .node.drag-over').forEach(el => {
                             el.classList.remove('drag-over');
@@ -241,8 +247,8 @@ const Links = {
     },
 
     _moveCategory(draggedId, targetId) {
-        const draggedCat = this.categories.find(c => c.id === draggedId);
-        const targetCat = this.categories.find(c => c.id === targetId);
+        const draggedCat = this._data.categories.find(c => c.id === draggedId);
+        const targetCat = this._data.categories.find(c => c.id === targetId);
         
         if (!draggedCat || !targetCat) return;
         
@@ -258,17 +264,11 @@ const Links = {
         
         if (draggedId === targetId) return;
         
-        const allCategories = this.categories;
-        const draggedCatObj = allCategories.find(c => c.id === draggedId);
-        const targetCatObj = allCategories.find(c => c.id === targetId);
+        const draggedIdx = this._data.categories.indexOf(draggedCat);
+        const targetIdx = this._data.categories.indexOf(targetCat);
         
-        if (!draggedCatObj || !targetCatObj) return;
-        
-        const draggedIdx = allCategories.indexOf(draggedCatObj);
-        const targetIdx = allCategories.indexOf(targetCatObj);
-        
-        allCategories.splice(draggedIdx, 1);
-        allCategories.splice(targetIdx, 0, draggedCatObj);
+        this._data.categories.splice(draggedIdx, 1);
+        this._data.categories.splice(targetIdx, 0, draggedCat);
         
         if (Store.save(this._data)) {
             this.render();
@@ -277,13 +277,13 @@ const Links = {
     },
 
     _buildTreeHtml(parentId, level) {
-        const cats = this.categories.filter(c => c.parentId === parentId);
+        const cats = this._data.categories.filter(c => c.parentId === parentId);
         if (cats.length === 0) return '';
 
         let html = '<ul>';
         cats.forEach(cat => {
             const isActive = this._selectedCategoryId === cat.id;
-            const hasChildren = this.categories.some(c => c.parentId === cat.id);
+            const hasChildren = this._data.categories.some(c => c.parentId === cat.id);
             const childHtml = this._buildTreeHtml(cat.id, level + 1);
             const linksCount = this.countLinksInCategory(cat.id);
 
@@ -315,7 +315,7 @@ const Links = {
         const container = document.getElementById('linksList');
         const title = document.getElementById('currentCategoryTitle');
 
-        let links = this.links;
+        let links = this._data.links;
         let categoryName = '📁 Все ссылки';
 
         if (this._selectedCategoryId) {
@@ -375,7 +375,7 @@ const Links = {
     },
 
     _openCategoryForm(id) {
-        const cat = id ? this.categories.find(c => c.id === id) : null;
+        const cat = id ? this._data.categories.find(c => c.id === id) : null;
         document.getElementById('editCategoryId').value = cat ? cat.id : '';
         document.getElementById('categoryName').value = cat ? cat.name : '';
         document.getElementById('categoryFormTitle').textContent = cat ? '✏️ Редактировать категорию' :
@@ -384,7 +384,7 @@ const Links = {
 
         const select = document.getElementById('categoryParent');
         select.innerHTML = '<option value="">— Корневая —</option>';
-        this.categories.forEach(c => {
+        this._data.categories.forEach(c => {
             if (c.id === cat?.id) return;
             select.innerHTML += `<option value="${c.id}" ${cat?.parentId === c.id ? 'selected' : ''}>${this._escape(c.name)}</option>`;
         });
@@ -399,7 +399,7 @@ const Links = {
     },
 
     _openLinkForm(categoryId, id) {
-        const link = id ? this.links.find(l => l.id === id) : null;
+        const link = id ? this._data.links.find(l => l.id === id) : null;
         document.getElementById('editLinkId').value = link ? link.id : '';
         document.getElementById('linkTitle').value = link ? link.title : '';
         document.getElementById('linkUrl').value = link ? link.url : '';
@@ -492,7 +492,7 @@ const Links = {
     },
 
     _exportLinks() {
-        const links = this._selectedCategoryId ? this.getLinksForCategory(this._selectedCategoryId) : this.links;
+        const links = this._selectedCategoryId ? this.getLinksForCategory(this._selectedCategoryId) : this._data.links;
         if (links.length === 0) { Toast.show('Нет ссылок для экспорта', 'warning'); return; }
 
         const data = [
