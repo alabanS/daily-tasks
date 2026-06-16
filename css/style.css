@@ -646,6 +646,26 @@ body {
 .tree-item .node .node-actions .delete-btn:hover {
     color: var(--danger-color);
 }
+/* Drag & Drop для категорий */
+.tree-item .node.dragging {
+    opacity: 0.5;
+    transform: scale(0.95);
+}
+
+.tree-item .node.drag-over {
+    background: var(--accent-color);
+    color: white;
+    border-radius: 8px;
+    box-shadow: 0 0 0 2px var(--accent-color);
+}
+
+.tree-item .node.drag-over .node-label {
+    color: white;
+}
+
+.tree-item .node.drag-over .node-actions button {
+    color: white;
+}
 
 .links-content {
     flex: 1;
