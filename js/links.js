@@ -11,6 +11,7 @@ const Links = {
         if (!this._data.categories) this._data.categories = [];
         if (!this._data.links) this._data.links = [];
         this._selectedCategoryId = null;
+        this._draggedCategoryId = null;
         this.render();
         this._bindEvents();
     },
@@ -180,6 +181,7 @@ const Links = {
         const container = document.getElementById('categoryTree');
         container.innerHTML = this._buildTreeHtml(null, 0);
         
+        // Добавляем обработчики для сворачивания
         container.querySelectorAll('.toggle-icon').forEach(el => {
             el.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -192,10 +194,12 @@ const Links = {
             });
         });
 
+        // Добавляем Drag & Drop только для корневых категорий
         this._setupDragAndDrop();
     },
 
     _setupDragAndDrop() {
+        // Находим только корневые категории (первый уровень)
         const rootNodes = document.querySelectorAll('.tree > ul > li > .node');
         
         rootNodes.forEach(node => {
@@ -219,8 +223,10 @@ const Links = {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'move';
                 
+                // Разрешаем drop только на корневые категории
                 const targetNode = e.target.closest('.node');
                 if (targetNode && this._draggedCategoryId && this._draggedCategoryId !== targetNode.dataset.id) {
+                    // Проверяем, что целевая категория тоже корневая
                     const isTargetRoot = this.categories.find(c => c.id === targetNode.dataset.id)?.parentId === null;
                     if (isTargetRoot) {
                         document.querySelectorAll('.tree-item .node.drag-over').forEach(el => {
@@ -255,6 +261,7 @@ const Links = {
         
         if (!draggedCat || !targetCat) return;
         
+        // Проверяем, что обе категории корневые
         if (draggedCat.parentId !== null) {
             Toast.show('Можно перемещать только корневые категории', 'warning');
             return;
@@ -265,8 +272,10 @@ const Links = {
             return;
         }
         
+        // Нельзя перемещать в саму себя
         if (draggedId === targetId) return;
         
+        // Меняем порядок: находим индексы и меняем их местами
         const allCategories = this.categories;
         const draggedCatObj = allCategories.find(c => c.id === draggedId);
         const targetCatObj = allCategories.find(c => c.id === targetId);
@@ -332,6 +341,7 @@ const Links = {
             categoryName = '📁 ' + this.getCategoryPath(this._selectedCategoryId);
         }
 
+        // Добавляем кнопку "Все ссылки" в заголовок, если выбрана категория
         let backButton = '';
         if (this._selectedCategoryId) {
             backButton = `<button class="btn-back" onclick="Links.showAllLinks()" style="background:var(--border-color);border:none;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:0.8em;margin-left:10px;">← Все ссылки</button>`;
@@ -372,6 +382,7 @@ const Links = {
         container.innerHTML = html;
     },
 
+    // Функция для показа всех ссылок
     showAllLinks() {
         this._selectedCategoryId = null;
         this.render();
