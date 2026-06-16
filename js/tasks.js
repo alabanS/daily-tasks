@@ -1,505 +1,470 @@
-// Модуль задач
-const tasksModule = (function() {
-    const STORAGE_KEY = 'daily_tasks';
-    let currentEditId = null;
-    let currentFilter = 'all';
-    let selectedPriority = 'medium';
+// =====================================================================
+//  МОДУЛЬ ЗАДАЧ (Канбан)
+// =====================================================================
+const Tasks = {
+    columns: ['todo', 'progress', 'review', 'done', 'archive'],
+    columnLabels: {
+        todo: '📝 To Do',
+        progress: '🔄 В работе',
+        review: '👀 На проверке',
+        done: '✅ Готово',
+        archive: '📦 Архив'
+    },
+    columnColors: {
+        todo: 'var(--todo-color)',
+        progress: 'var(--progress-color)',
+        review: 'var(--review-color)',
+        done: 'var(--done-color)',
+        archive: 'var(--archive-color)'
+    },
 
-    // Получение задач из localStorage
-    function getTasks() {
-        const tasksJson = localStorage.getItem(STORAGE_KEY);
-        return tasksJson ? JSON.parse(tasksJson) : [];
-    }
+    _data: null,
+    _currentFilter: 'all',
+    _searchQuery: '',
+    _draggedId: null,
 
-    // Сохранение задач в localStorage
-    function saveTasks(tasks) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-        updateStats(tasks);
-        
-        if (currentFilter === 'date') {
-            // Если фильтр по дате, нужно получить выбранную дату из календаря
+    init() {
+        this._data = Store.getAll();
+        if (!this._data.tasks) this._data.tasks = [];
+        if (!this._data.notes) this._data.notes = [];
+        if (!this._data.categories) this._data.categories = [];
+        if (!this._data.links) this._data.links = [];
+        this.render();
+        this._bindEvents();
+        this._updateDate();
+    },
+
+    get tasks() { return this._data.tasks; },
+
+    getFiltered() {
+        let list = this.tasks;
+        if (this._currentFilter !== 'all') {
+            list = list.filter(t => t.column === this._currentFilter);
+        }
+        if (this._searchQuery.trim()) {
+            const q = this._searchQuery.trim().toLowerCase();
+            list = list.filter(t =>
+                t.title.toLowerCase().includes(q) ||
+                (t.desc && t.desc.toLowerCase().includes(q))
+            );
+        }
+        return list;
+    },
+
+    getByColumn(col) {
+        let list = this.tasks.filter(t => t.column === col);
+        if (this._searchQuery.trim()) {
+            const q = this._searchQuery.trim().toLowerCase();
+            list = list.filter(t =>
+                t.title.toLowerCase().includes(q) ||
+                (t.desc && t.desc.toLowerCase().includes(q))
+            );
+        }
+        return list;
+    },
+
+    saveTask(data) {
+        const isEdit = !!data.id;
+        let task;
+        if (isEdit) {
+            const idx = this.tasks.findIndex(t => t.id === data.id);
+            if (idx === -1) return false;
+            task = { ...this.tasks[idx], ...data };
+            this.tasks[idx] = task;
         } else {
-            filterTasks(currentFilter);
+            task = {
+                id: Store.generateId(),
+                title: data.title.trim(),
+                desc: (data.desc || '').trim(),
+                link: (data.link || '').trim(),
+                priority: data.priority || 'medium',
+                category: data.category || 'other',
+                deadline: data.deadline || null,
+                column: 'todo',
+                createdAt: new Date().toISOString(),
+                completedAt: null,
+                archivedAt: null
+            };
+            this.tasks.unshift(task);
         }
-        
-        if (typeof calendarModule !== 'undefined' && calendarModule.refreshCalendar) {
-            calendarModule.refreshCalendar();
+        if (Store.save(this._data)) {
+            this.render();
+            return task;
         }
-    }
+        return null;
+    },
 
-    // Обновление статистики
-    function updateStats(tasks) {
-        const total = tasks.length;
-        const completed = tasks.filter(t => t.completed).length;
-        const pending = total - completed;
-        
-        document.getElementById('totalTasks').textContent = total;
-        document.getElementById('completedTasks').textContent = completed;
-        document.getElementById('pendingTasks').textContent = pending;
-        
-        const progressPercent = total === 0 ? 0 : (completed / total) * 100;
-        document.getElementById('progressFill').style.width = `${progressPercent}%`;
-    }
+    moveTask(id, targetColumn) {
+        const idx = this.tasks.findIndex(t => t.id === id);
+        if (idx === -1) return false;
+        const task = this.tasks[idx];
+        const oldCol = task.column;
+        if (oldCol === targetColumn) return true;
 
-    // Форматирование даты и времени
-    function formatDateTime(dateTimeStr) {
-        if (!dateTimeStr) return 'Дата не указана';
-        
-        const date = new Date(dateTimeStr);
-        return date.toLocaleString('ru-RU', {
-            day: 'numeric',
-            month: 'short',
-            hour: '2-digit',
-            minute: '2-digit'
+        task.column = targetColumn;
+        if (targetColumn === 'done' && oldCol !== 'done') {
+            task.completedAt = new Date().toISOString();
+        }
+        if (targetColumn === 'archive' && oldCol !== 'archive') {
+            task.archivedAt = new Date().toISOString();
+        }
+        if (oldCol === 'archive' && targetColumn !== 'archive') {
+            task.archivedAt = null;
+        }
+        if (oldCol === 'done' && targetColumn !== 'done') {
+            task.completedAt = null;
+        }
+
+        if (Store.save(this._data)) {
+            this.render();
+            Toast.show(`Задача перемещена в "${this.columnLabels[targetColumn]}"`, 'success');
+            return true;
+        }
+        return false;
+    },
+
+    deleteTask(id) {
+        if (!confirm('Удалить задачу?')) return false;
+        const idx = this.tasks.findIndex(t => t.id === id);
+        if (idx === -1) return false;
+        this.tasks.splice(idx, 1);
+        if (Store.save(this._data)) {
+            this.render();
+            Toast.show('Задача удалена', 'info');
+            return true;
+        }
+        return false;
+    },
+
+    getById(id) {
+        return this.tasks.find(t => t.id === id) || null;
+    },
+
+    render() {
+        const board = document.getElementById('kanbanBoard');
+        board.innerHTML = '';
+
+        let colsToShow = this.columns;
+        if (this._currentFilter !== 'all' && this.columns.includes(this._currentFilter)) {
+            colsToShow = [this._currentFilter];
+        }
+
+        colsToShow.forEach(col => {
+            const tasks = this.getByColumn(col);
+            const colEl = document.createElement('div');
+            colEl.className = 'kanban-column';
+            colEl.style.background = this.columnColors[col] || 'var(--card-bg)';
+
+            const header = document.createElement('div');
+            header.className = 'column-header';
+            header.innerHTML = `
+                <span class="column-title">
+                    ${this.columnLabels[col]}
+                    <span class="count">${tasks.length}</span>
+                </span>
+            `;
+            colEl.appendChild(header);
+
+            const body = document.createElement('div');
+            body.className = 'column-body droppable';
+            body.dataset.column = col;
+
+            if (tasks.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'empty-column';
+                empty.textContent = 'Нет задач';
+                body.appendChild(empty);
+            } else {
+                tasks.forEach(task => {
+                    body.appendChild(this._createCard(task));
+                });
+            }
+
+            body.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                body.classList.add('drag-over');
+            });
+            body.addEventListener('dragleave', () => {
+                body.classList.remove('drag-over');
+            });
+            body.addEventListener('drop', (e) => {
+                e.preventDefault();
+                body.classList.remove('drag-over');
+                const id = this._draggedId;
+                if (id) {
+                    this.moveTask(id, body.dataset.column);
+                    this._draggedId = null;
+                }
+            });
+
+            colEl.appendChild(body);
+            board.appendChild(colEl);
         });
-    }
 
-    // Экранирование HTML
-    function escapeHtml(text) {
+        this._updateStats();
+    },
+
+    _createCard(task) {
+        const card = document.createElement('div');
+        card.className = `task-card${task.column === 'done' ? ' done' : ''}`;
+        card.draggable = true;
+        card.dataset.id = task.id;
+
+        card.addEventListener('dragstart', (e) => {
+            this._draggedId = task.id;
+            card.classList.add('dragging');
+        });
+        card.addEventListener('dragend', () => {
+            card.classList.remove('dragging');
+        });
+
+        const priorityLabels = { high: 'Высокий', medium: 'Средний', low: 'Низкий' };
+        const categoryLabels = {
+            work: 'Работа',
+            personal: 'Личное',
+            study: 'Учеба',
+            health: 'Здоровье',
+            other: 'Другое'
+        };
+
+        let deadlineHtml = '';
+        if (task.deadline) {
+            const d = new Date(task.deadline);
+            const now = new Date();
+            const isOverdue = d < now && task.column !== 'done' && task.column !== 'archive';
+            deadlineHtml =
+                `<span class="tag tag-deadline">⏰ ${d.toLocaleDateString('ru-RU')} ${d.toLocaleTimeString('ru-RU', {hour:'2-digit',minute:'2-digit'})}${isOverdue ? ' ⚠️' : ''}</span>`;
+        }
+
+        let linkHtml = '';
+        if (task.link && task.link.trim()) {
+            const url = task.link.trim();
+            const fullUrl = url.match(/^https?:\/\//) ? url : 'https://' + url;
+            linkHtml = `
+                <div class="task-link-wrapper">
+                    <a href="${fullUrl}" target="_blank" rel="noopener noreferrer" class="task-link" title="${this._escape(url)}">
+                        ${this._escape(url.length > 50 ? url.slice(0, 50) + '…' : url)}
+                    </a>
+                </div>
+            `;
+        }
+
+        const created = task.createdAt ? new Date(task.createdAt).toLocaleDateString('ru-RU') : '';
+
+        card.innerHTML = `
+            <div class="task-title">${this._escape(task.title)}</div>
+            ${task.desc ? `<div class="task-desc">${this._escape(task.desc)}</div>` : ''}
+            ${linkHtml}
+            <div class="task-tags">
+                <span class="tag tag-priority-${task.priority}">${priorityLabels[task.priority]}</span>
+                <span class="tag tag-category">${categoryLabels[task.category] || 'Другое'}</span>
+                ${deadlineHtml}
+                ${task.column === 'done' && task.completedAt ? `<span class="tag" style="background:rgba(39,174,96,0.15);color:var(--success-color);">✅ ${new Date(task.completedAt).toLocaleDateString('ru-RU')}</span>` : ''}
+                ${task.column === 'archive' ? `<span class="tag" style="background:var(--border-color);color:var(--text-muted);">📦 архив</span>` : ''}
+                ${task.link ? `<span class="tag tag-link" onclick="window.open('${task.link.match(/^https?:\/\//) ? task.link : 'https://' + task.link}', '_blank')">🔗 ссылка</span>` : ''}
+            </div>
+            <div class="task-meta">
+                <span>📅 ${created}</span>
+                ${task.deadline ? `<span>⏳ ${new Date(task.deadline).toLocaleDateString('ru-RU')}</span>` : ''}
+            </div>
+            <div class="task-actions">
+                <button class="edit-btn" data-id="${task.id}" title="Редактировать">✏️</button>
+                <button class="delete-btn" data-id="${task.id}" title="Удалить">🗑️</button>
+            </div>
+        `;
+
+        card.querySelector('.edit-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this._openTaskForm(task.id);
+        });
+        card.querySelector('.delete-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.deleteTask(task.id);
+        });
+
+        return card;
+    },
+
+    _escape(text) {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
-    }
+    },
 
-    // Отображение задач
-    function displayTasks(tasks) {
-        const container = document.getElementById('tasksList');
+    _updateStats() {
+        const total = this.tasks.length;
+        const progress = this.tasks.filter(t => t.column === 'progress' || t.column === 'review').length;
+        const done = this.tasks.filter(t => t.column === 'done').length;
+        const archive = this.tasks.filter(t => t.column === 'archive').length;
 
-        if (tasks.length === 0) {
-            container.innerHTML = '<div class="empty-state"><p>Задач пока нет</p><p style="font-size: 0.9em;">Нажмите + чтобы добавить задачу</p></div>';
-            return;
-        }
+        document.getElementById('totalTasks').textContent = total;
+        document.getElementById('progressTasks').textContent = progress;
+        document.getElementById('doneTasks').textContent = done;
+        document.getElementById('archiveTasks').textContent = archive;
+    },
 
-        let html = '';
-        tasks.forEach(task => {
-            const priorityLabels = {
-                high: '🔴 Высокий',
-                medium: '🟡 Средний',
-                low: '🟢 Низкий'
-            };
-
-            // Подзадачи
-            let subtasksHTML = '';
-            if (task.subtasks && task.subtasks.length > 0) {
-                subtasksHTML = '<div class="task-subtasks">';
-                task.subtasks.forEach(subtask => {
-                    subtasksHTML += `
-                        <div class="subtask-item ${subtask.completed ? 'completed' : ''}">
-                            <input type="checkbox" class="subtask-checkbox" ${subtask.completed ? 'checked' : ''} 
-                                   onchange="tasksModule.toggleSubtaskComplete(${task.id}, '${subtask.id}')">
-                            <span class="subtask-title">${escapeHtml(subtask.title)}</span>
-                            ${subtask.deadline ? `<span class="subtask-deadline">⏰ ${formatDateTime(subtask.deadline)}</span>` : ''}
-                        </div>
-                    `;
-                });
-                subtasksHTML += '</div>';
-            }
-
-            html += `
-                <li class="task-item ${task.completed ? 'completed' : ''}">
-                    <div class="task-main">
-                        <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''} onchange="tasksModule.toggleTaskComplete(${task.id})">
-                        
-                        <div class="task-content">
-                            <div class="task-header">
-                                <span class="task-title ${task.completed ? 'completed' : ''}">${escapeHtml(task.title)}</span>
-                                <span class="priority-badge ${task.priority}">${priorityLabels[task.priority]}</span>
-                            </div>
-                            
-                            ${task.description ? `<div class="task-description">${escapeHtml(task.description)}</div>` : ''}
-                            
-                            <div class="task-meta">
-                                <span>📅 ${formatDateTime(task.dateTime)}</span>
-                                <span>➕ ${task.createdAt}</span>
-                                ${task.completedAt ? `<span>✅ Выполнено: ${task.completedAt}</span>` : ''}
-                            </div>
-                        </div>
-                        
-                        <div class="task-actions">
-                            <button class="action-btn edit-btn" onclick="tasksModule.openEditModal(${task.id})" title="Редактировать">✏️</button>
-                            <button class="action-btn delete-btn" onclick="tasksModule.deleteTask(${task.id})" title="Удалить">🗑️</button>
-                        </div>
-                    </div>
-                    
-                    ${subtasksHTML}
-                </li>
-            `;
-        });
-
-        container.innerHTML = html;
-    }
-
-    // Переключение формы добавления задачи
-    function toggleForm() {
-        const form = document.getElementById('taskForm');
-        form.classList.toggle('active');
-        
-        if (form.classList.contains('active')) {
-            document.getElementById('taskTitle').focus();
-            selectedPriority = 'medium';
-            updatePriorityUI();
-            setDefaultDateTime();
-            document.getElementById('subtasksContainer').innerHTML = '';
-        }
-    }
-
-    // Установка текущей даты и времени в поля ввода
-    function setDefaultDateTime() {
+    _updateDate() {
         const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        
-        const defaultDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
-        
-        const taskDateTime = document.getElementById('taskDateTime');
-        if (taskDateTime && !taskDateTime.value) {
-            taskDateTime.value = defaultDateTime;
-        }
-    }
+        document.getElementById('currentDate').textContent =
+            now.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+    },
 
-    // Выбор приоритета
-    function selectPriority(priority) {
-        selectedPriority = priority;
-        updatePriorityUI();
-    }
+    _openTaskForm(id) {
+        const task = id ? this.getById(id) : null;
+        document.getElementById('editTaskId').value = task ? task.id : '';
+        document.getElementById('taskTitle').value = task ? task.title : '';
+        document.getElementById('taskDesc').value = task ? task.desc || '' : '';
+        document.getElementById('taskLink').value = task ? task.link || '' : '';
+        document.getElementById('taskDeadline').value = task ? task.deadline || '' : '';
+        document.getElementById('taskCategory').value = task ? task.category || 'other' : 'other';
+        document.getElementById('taskFormTitle').textContent = task ? '✏️ Редактировать задачу' : '➕ Новая задача';
+        document.getElementById('taskFormSubmit').textContent = task ? 'Сохранить' : 'Добавить';
 
-    // Обновление UI приоритета
-    function updatePriorityUI() {
-        document.querySelectorAll('.priority-option').forEach(opt => {
-            opt.classList.remove('selected');
-            if (opt.dataset.priority === selectedPriority) {
-                opt.classList.add('selected');
-            }
+        document.querySelectorAll('#prioritySelector .priority-opt').forEach(el => {
+            el.classList.toggle('selected', el.dataset.priority === (task ? task.priority : 'medium'));
         });
-    }
 
-    // Добавление поля подзадачи (для формы создания)
-    function addSubtaskField() {
-        const container = document.getElementById('subtasksContainer');
-        const subtaskId = Date.now() + Math.random();
-        
-        const subtaskHTML = `
-            <div class="subtask-item" id="subtask-${subtaskId}">
-                <input type="text" placeholder="Название подзадачи" class="subtask-title-input">
-                <input type="datetime-local" class="subtask-deadline-input">
-                <button class="remove-subtask" onclick="tasksModule.removeSubtaskField('${subtaskId}')" type="button">✕</button>
-            </div>
-        `;
-        
-        container.insertAdjacentHTML('beforeend', subtaskHTML);
-    }
+        document.getElementById('taskFormOverlay').classList.add('active');
+    },
 
-    // Удаление поля подзадачи (для формы создания)
-    function removeSubtaskField(id) {
-        document.getElementById(`subtask-${id}`).remove();
-    }
+    _closeTaskForm() {
+        document.getElementById('taskFormOverlay').classList.remove('active');
+        document.getElementById('editTaskId').value = '';
+        document.getElementById('taskForm').reset();
+        document.querySelectorAll('#prioritySelector .priority-opt').forEach(el => {
+            el.classList.toggle('selected', el.dataset.priority === 'medium');
+        });
+        const now = new Date();
+        document.getElementById('taskDeadline').value =
+            `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}T${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    },
 
-    // Добавление поля подзадачи в режиме редактирования
-    function addEditSubtaskField(subtaskData = null) {
-        const container = document.getElementById('editSubtasksContainer');
-        const subtaskId = subtaskData ? subtaskData.id : Date.now() + Math.random();
-        
-        const value = subtaskData ? escapeHtml(subtaskData.title) : '';
-        const deadlineValue = subtaskData && subtaskData.deadline ? subtaskData.deadline : '';
-        const checked = subtaskData && subtaskData.completed ? 'checked' : '';
-        
-        const subtaskHTML = `
-            <div class="subtask-item" id="edit-subtask-${subtaskId}">
-                <input type="text" placeholder="Название подзадачи" class="subtask-title-input" value="${value}">
-                <input type="datetime-local" class="subtask-deadline-input" value="${deadlineValue}">
-                <label style="display: flex; align-items: center; gap: 3px; font-size: 0.8em;">
-                    <input type="checkbox" class="subtask-checkbox-edit" ${checked}> Готово
-                </label>
-                <button class="remove-subtask" onclick="tasksModule.removeEditSubtaskField('${subtaskId}')" type="button">✕</button>
-            </div>
-        `;
-        
-        container.insertAdjacentHTML('beforeend', subtaskHTML);
-    }
+    _bindEvents() {
+        document.getElementById('addTaskBtn').addEventListener('click', () => this._openTaskForm(null));
 
-    // Удаление поля подзадачи в режиме редактирования
-    function removeEditSubtaskField(id) {
-        document.getElementById(`edit-subtask-${id}`).remove();
-    }
+        document.getElementById('taskFormCancel').addEventListener('click', () => this._closeTaskForm());
+        document.getElementById('taskFormOverlay').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) this._closeTaskForm();
+        });
 
-    // Добавление задачи
-    function addTask() {
-        const titleInput = document.getElementById('taskTitle');
-        const descInput = document.getElementById('taskDescription');
-        const dateTimeInput = document.getElementById('taskDateTime');
-        
-        const title = titleInput.value.trim();
-        const description = descInput.value.trim();
-        const dateTime = dateTimeInput.value || new Date().toISOString().slice(0, 16);
+        document.querySelectorAll('#prioritySelector .priority-opt').forEach(el => {
+            el.addEventListener('click', () => {
+                document.querySelectorAll('#prioritySelector .priority-opt').forEach(o => o.classList
+                    .remove('selected'));
+                el.classList.add('selected');
+            });
+        });
 
-        if (!title) {
-            alert('Введите название задачи!');
-            return;
-        }
-
-        // Собираем подзадачи
-        const subtasks = [];
-        document.querySelectorAll('#subtasksContainer .subtask-item').forEach(item => {
-            const titleInput = item.querySelector('.subtask-title-input');
-            const deadlineInput = item.querySelector('.subtask-deadline-input');
-            
-            if (titleInput.value.trim()) {
-                subtasks.push({
-                    id: Date.now() + Math.random(),
-                    title: titleInput.value.trim(),
-                    deadline: deadlineInput.value,
-                    completed: false
-                });
+        document.getElementById('taskForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const title = document.getElementById('taskTitle').value.trim();
+            if (!title) { Toast.show('Введите название!', 'warning'); return; }
+            const editId = document.getElementById('editTaskId').value;
+            const priority = document.querySelector('#prioritySelector .priority-opt.selected')
+                ?.dataset.priority || 'medium';
+            const data = {
+                id: editId || undefined,
+                title,
+                desc: document.getElementById('taskDesc').value.trim(),
+                link: document.getElementById('taskLink').value.trim(),
+                priority,
+                category: document.getElementById('taskCategory').value,
+                deadline: document.getElementById('taskDeadline').value || null
+            };
+            if (this.saveTask(data)) {
+                this._closeTaskForm();
+                Toast.show(editId ? 'Задача обновлена' : 'Задача добавлена', 'success');
             }
         });
 
-        const newTask = {
-            id: Date.now(),
-            title: title,
-            description: description,
-            dateTime: dateTime,
-            priority: selectedPriority,
-            completed: false,
-            createdAt: new Date().toLocaleString('ru-RU'),
-            completedAt: null,
-            subtasks: subtasks
-        };
-
-        const tasks = getTasks();
-        tasks.unshift(newTask);
-        saveTasks(tasks);
-
-        titleInput.value = '';
-        descInput.value = '';
-        dateTimeInput.value = '';
-        selectedPriority = 'medium';
-        updatePriorityUI();
-        document.getElementById('subtasksContainer').innerHTML = '';
-        
-        toggleForm();
-    }
-
-    // Переключение статуса задачи
-    function toggleTaskComplete(id) {
-        const tasks = getTasks();
-        const task = tasks.find(t => t.id === id);
-        
-        if (task) {
-            task.completed = !task.completed;
-            task.completedAt = task.completed ? new Date().toLocaleString('ru-RU') : null;
-            saveTasks(tasks);
-        }
-    }
-
-    // Переключение статуса подзадачи
-    function toggleSubtaskComplete(taskId, subtaskId) {
-        const tasks = getTasks();
-        const task = tasks.find(t => t.id === taskId);
-        
-        if (task && task.subtasks) {
-            // Ищем подзадачу по ID (теперь ID могут быть строками или числами)
-            const subtask = task.subtasks.find(s => String(s.id) === String(subtaskId));
-            
-            if (subtask) {
-                subtask.completed = !subtask.completed;
-                
-                // Проверяем, все ли подзадачи выполнены
-                const allCompleted = task.subtasks.every(s => s.completed);
-                if (allCompleted && !task.completed) {
-                    task.completed = true;
-                    task.completedAt = new Date().toLocaleString('ru-RU');
-                } else if (!allCompleted && task.completed) {
-                    task.completed = false;
-                    task.completedAt = null;
-                }
-                
-                saveTasks(tasks);
-            }
-        }
-    }
-
-    // Удаление задачи
-    function deleteTask(id) {
-        if (confirm('Удалить задачу?')) {
-            const tasks = getTasks();
-            const filteredTasks = tasks.filter(task => task.id !== id);
-            saveTasks(filteredTasks);
-        }
-    }
-
-    // Открытие модального окна редактирования
-    function openEditModal(id) {
-        const tasks = getTasks();
-        const task = tasks.find(t => t.id === id);
-        
-        if (task) {
-            currentEditId = id;
-            document.getElementById('editTitle').value = task.title;
-            document.getElementById('editDescription').value = task.description || '';
-            
-            if (task.dateTime) {
-                document.getElementById('editDateTime').value = task.dateTime;
-            } else {
-                const now = new Date();
-                const year = now.getFullYear();
-                const month = String(now.getMonth() + 1).padStart(2, '0');
-                const day = String(now.getDate()).padStart(2, '0');
-                const hours = String(now.getHours()).padStart(2, '0');
-                const minutes = String(now.getMinutes()).padStart(2, '0');
-                document.getElementById('editDateTime').value = `${year}-${month}-${day}T${hours}:${minutes}`;
-            }
-            
-            document.getElementById('editPriority').value = task.priority;
-            
-            // Загружаем подзадачи для редактирования
-            const container = document.getElementById('editSubtasksContainer');
-            container.innerHTML = '';
-            
-            if (task.subtasks && task.subtasks.length > 0) {
-                task.subtasks.forEach(subtask => {
-                    addEditSubtaskField(subtask);
-                });
-            }
-            
-            document.getElementById('editModal').classList.add('active');
-        }
-    }
-
-    // Закрытие модального окна
-    function closeModal() {
-        document.getElementById('editModal').classList.remove('active');
-        document.getElementById('editSubtasksContainer').innerHTML = '';
-        currentEditId = null;
-    }
-
-    // Сохранение изменений
-    function saveEdit() {
-        if (!currentEditId) return;
-
-        const newTitle = document.getElementById('editTitle').value.trim();
-        const newDescription = document.getElementById('editDescription').value.trim();
-        const newDateTime = document.getElementById('editDateTime').value;
-        const newPriority = document.getElementById('editPriority').value;
-
-        if (!newTitle) {
-            alert('Введите название задачи!');
-            return;
-        }
-
-        // Собираем подзадачи из формы редактирования
-        const subtasks = [];
-        document.querySelectorAll('#editSubtasksContainer .subtask-item').forEach(item => {
-            const titleInput = item.querySelector('.subtask-title-input');
-            const deadlineInput = item.querySelector('.subtask-deadline-input');
-            const checkboxInput = item.querySelector('.subtask-checkbox-edit');
-            
-            if (titleInput.value.trim()) {
-                // Извлекаем ID из элемента
-                const id = item.id.replace('edit-subtask-', '');
-                
-                subtasks.push({
-                    id: id, // Сохраняем существующий ID
-                    title: titleInput.value.trim(),
-                    deadline: deadlineInput.value,
-                    completed: checkboxInput ? checkboxInput.checked : false
-                });
-            }
-        });
-
-        const tasks = getTasks();
-        const index = tasks.findIndex(t => t.id === currentEditId);
-        
-        if (index !== -1) {
-            tasks[index].title = newTitle;
-            tasks[index].description = newDescription;
-            tasks[index].dateTime = newDateTime;
-            tasks[index].priority = newPriority;
-            tasks[index].subtasks = subtasks; // Обновляем подзадачи
-            
-            saveTasks(tasks);
-        }
-
-        closeModal();
-    }
-
-    // Фильтрация задач
-    function filterTasks(filter) {
-        currentFilter = filter;
-        
         document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.classList.remove('active');
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this._currentFilter = btn.dataset.filter;
+                this.render();
+            });
         });
-        document.getElementById(`filter${filter.charAt(0).toUpperCase() + filter.slice(1)}`).classList.add('active');
-        
-        const tasks = getTasks();
-        let filteredTasks = tasks;
-        
-        if (filter === 'pending') {
-            filteredTasks = tasks.filter(t => !t.completed);
-        } else if (filter === 'completed') {
-            filteredTasks = tasks.filter(t => t.completed);
-        }
-        
-        displayTasks(filteredTasks);
-    }
 
-    // Фильтрация по дате
-    function filterTasksByDate(date) {
-        currentFilter = 'date';
-        const tasks = getTasks();
-        const dateStr = date.toISOString().split('T')[0];
-        
-        const filteredTasks = tasks.filter(task => {
-            if (!task.dateTime) return false;
-            const taskDate = new Date(task.dateTime).toISOString().split('T')[0];
-            return taskDate === dateStr;
+        let searchTimer;
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                this._searchQuery = e.target.value;
+                this.render();
+            }, 300);
         });
-        
-        displayTasks(filteredTasks);
-    }
 
-    // Загрузка всех задач
-    function loadTasks() {
-        const tasks = getTasks();
-        updateStats(tasks);
-        displayTasks(tasks);
-    }
+        document.getElementById('exportExcelBtn').addEventListener('click', () => this._exportExcel());
 
-    // Инициализация
-    function init() {
-        loadTasks();
-        setDefaultDateTime();
-        updatePriorityUI();
-        
-        // Установка текущей даты
-        document.getElementById('currentDate').textContent = new Date().toLocaleDateString('ru-RU', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric'
+        // Навигация
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                const pageId = 'page' + tab.dataset.page.charAt(0).toUpperCase() + tab.dataset.page
+                    .slice(1);
+                document.getElementById(pageId).classList.add('active');
+                if (tab.dataset.page === 'links') Links.render();
+                if (tab.dataset.page === 'notes') Notes.render();
+            });
         });
-    }
+    },
 
-    // Публичные методы
-    return {
-        getTasks,
-        init,
-        toggleForm,
-        selectPriority,
-        addSubtaskField,
-        removeSubtaskField,
-        addEditSubtaskField,
-        removeEditSubtaskField,
-        addTask,
-        toggleTaskComplete,
-        toggleSubtaskComplete,
-        deleteTask,
-        openEditModal,
-        closeModal,
-        saveEdit,
-        filterTasks,
-        filterTasksByDate
-    };
-})();
+    _exportExcel() {
+        const tasks = this.tasks;
+        if (tasks.length === 0) { Toast.show('Нет задач для экспорта', 'warning'); return; }
+
+        const priorityLabels = { high: 'Высокий', medium: 'Средний', low: 'Низкий' };
+        const categoryLabels = {
+            work: 'Работа',
+            personal: 'Личное',
+            study: 'Учеба',
+            health: 'Здоровье',
+            other: 'Другое'
+        };
+        const columnLabels = this.columnLabels;
+
+        const data = [
+            ['Отчет по задачам (Канбан)', `Сгенерировано: ${new Date().toLocaleString('ru-RU')}`],
+            [],
+            ['Статистика:'],
+            ['Всего задач:', tasks.length],
+            ['В работе:', tasks.filter(t => t.column === 'progress' || t.column === 'review').length],
+            ['Выполнено:', tasks.filter(t => t.column === 'done').length],
+            ['Архив:', tasks.filter(t => t.column === 'archive').length],
+            [],
+            ['Детальный список:'],
+            ['ID', 'Название', 'Описание', 'Ссылка', 'Колонка', 'Приоритет', 'Категория', 'Дедлайн', 'Создана',
+                'Выполнена', 'Архивирована'
+            ]
+        ];
+
+        tasks.forEach(task => {
+            data.push([
+                task.id,
+                task.title,
+                task.desc || '',
+                task.link || '',
+                columnLabels[task.column] || task.column,
+                priorityLabels[task.priority] || task.priority,
+                categoryLabels[task.category] || task.category,
+                task.deadline ? new Date(task.deadline).toLocaleString('ru-RU') : '',
+                task.createdAt ? new Date(task.createdAt).toLocaleString('ru-RU') : '',
+                task.completedAt ? new Date(task.completedAt).toLocaleString('ru-RU') : '',
+                task.archivedAt ? new Date(task.archivedAt).toLocaleString('ru-RU') : ''
+            ]);
+        });
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        ws['!cols'] = [{ wch: 10 }, { wch: 30 }, { wch: 40 }, { wch: 35 },
+            { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 20 },
+            { wch: 20 }, { wch: 20 }, { wch: 20 }
+        ];
+        XLSX.utils.book_append_sheet(wb, ws, 'Канбан');
+        XLSX.writeFile(wb, `kanban-report-${new Date().toISOString().slice(0, 10)}.xlsx`);
+        Toast.show('Отчет сохранен', 'success');
+    }
+};
