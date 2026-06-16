@@ -148,13 +148,15 @@ const Links = {
             });
         });
 
-        // Добавляем Drag & Drop для категорий
+        // Добавляем Drag & Drop только для корневых категорий
         this._setupDragAndDrop();
     },
 
     _setupDragAndDrop() {
-        const nodes = document.querySelectorAll('.tree-item .node');
-        nodes.forEach(node => {
+        // Находим только корневые категории (первый уровень)
+        const rootNodes = document.querySelectorAll('.tree > ul > li > .node');
+        
+        rootNodes.forEach(node => {
             node.setAttribute('draggable', 'true');
             
             node.addEventListener('dragstart', (e) => {
@@ -174,11 +176,18 @@ const Links = {
             node.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'move';
-                if (this._draggedCategoryId && this._draggedCategoryId !== node.dataset.id) {
-                    document.querySelectorAll('.tree-item .node.drag-over').forEach(el => {
-                        el.classList.remove('drag-over');
-                    });
-                    node.classList.add('drag-over');
+                
+                // Разрешаем drop только на корневые категории
+                const targetNode = e.target.closest('.node');
+                if (targetNode && this._draggedCategoryId && this._draggedCategoryId !== targetNode.dataset.id) {
+                    // Проверяем, что целевая категория тоже корневая
+                    const isTargetRoot = this.categories.find(c => c.id === targetNode.dataset.id)?.parentId === null;
+                    if (isTargetRoot) {
+                        document.querySelectorAll('.tree-item .node.drag-over').forEach(el => {
+                            el.classList.remove('drag-over');
+                        });
+                        targetNode.classList.add('drag-over');
+                    }
                 }
             });
 
@@ -206,19 +215,42 @@ const Links = {
         
         if (!draggedCat || !targetCat) return;
         
-        // Нельзя перемещать категорию в саму себя или в дочернюю
-        if (draggedId === targetId) return;
-        if (this._isChildOf(draggedId, targetId)) {
-            Toast.show('Нельзя переместить категорию в дочернюю', 'warning');
+        // Проверяем, что обе категории корневые
+        if (draggedCat.parentId !== null) {
+            Toast.show('Можно перемещать только корневые категории', 'warning');
             return;
         }
         
-        // Меняем parentId у перемещаемой категории на targetId
-        draggedCat.parentId = targetId;
+        if (targetCat.parentId !== null) {
+            Toast.show('Можно перемещать только между корневыми категориями', 'warning');
+            return;
+        }
+        
+        // Нельзя перемещать в саму себя
+        if (draggedId === targetId) return;
+        
+        // Меняем порядок: находим индексы и меняем их местами
+        const rootCategories = this.categories.filter(c => c.parentId === null);
+        const draggedIndex = rootCategories.findIndex(c => c.id === draggedId);
+        const targetIndex = rootCategories.findIndex(c => c.id === targetId);
+        
+        if (draggedIndex === -1 || targetIndex === -1) return;
+        
+        // Переставляем элементы в массиве
+        const allCategories = this.categories;
+        const draggedCatObj = allCategories.find(c => c.id === draggedId);
+        const targetCatObj = allCategories.find(c => c.id === targetId);
+        
+        // Меняем местами в массиве
+        const draggedIdx = allCategories.indexOf(draggedCatObj);
+        const targetIdx = allCategories.indexOf(targetCatObj);
+        
+        allCategories.splice(draggedIdx, 1);
+        allCategories.splice(targetIdx, 0, draggedCatObj);
         
         if (Store.save(this._data)) {
             this.render();
-            Toast.show(`Категория "${draggedCat.name}" перемещена в "${targetCat.name}"`, 'success');
+            Toast.show(`Категория "${draggedCat.name}" перемещена`, 'success');
         }
     },
 
