@@ -1402,7 +1402,7 @@ body.dark-theme .menu-toggle:hover {
     }
 }
 
-/* ========== АДАПТИВНОСТЬ ========== */
+* ========== АДАПТИВНОСТЬ ========== */
 @media (max-width: 1200px) {
     .kanban-board {
         grid-template-columns: repeat(3, 1fr);
@@ -1527,7 +1527,9 @@ body.dark-theme .menu-toggle:hover {
         font-size: 0.8em;
         padding: 6px 12px;
     }
-    /* ========== ФОРМА ОТЗЫВА ========== */
+}
+
+/* ========== ФОРМА ОТЗЫВА ========== */
 .rating-star {
     cursor: pointer;
     transition: all 0.2s ease;
