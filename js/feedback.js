@@ -2,7 +2,7 @@
 //  МОДУЛЬ ФОРМЫ ОТЗЫВА
 // =====================================================================
 const Feedback = {
-    GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/ВАШ_ID_СКРИПТА/exec', // ← Заменить на ваш URL
+    GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbya0QpAufhPUmkgcgs1qHNGz61s_FpWTIZpj46cFYVNy1W92nVL8k5K52108z0zNrmrBA/exec', 
 
     init() {
         this._bindEvents();
