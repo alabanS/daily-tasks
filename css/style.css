@@ -172,9 +172,10 @@ body {
     transform: scale(1.15);
 }
 
-/* Сердечко — краснеет и пульсирует при наведении */
+/* Сердечко — белое, при наведении краснеет и пульсирует */
 .donate-btn {
     transition: all 0.3s ease;
+    color: var(--text-muted);
 }
 
 .donate-btn:hover {
