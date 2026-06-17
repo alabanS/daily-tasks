@@ -158,6 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
     Tasks.init();
     Links.init();
     Notes.init();
+    Feedback.init();  // ← ДОБАВИТЬ ЭТУ СТРОКУ
 
     const now = new Date();
     document.getElementById('taskDeadline').value =
