@@ -1257,37 +1257,73 @@ body {
     .links-sidebar {
         max-height: 200px;
     }
-    /* ========== КНОПКИ ЭКСПОРТА/ИМПОРТА ========== */
+/* ========== КНОПКИ ЭКСПОРТА/ИМПОРТА ========== */
 .export-import-btn {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    width: 48px;
-    height: 48px;
+    background: transparent;
+    border: none;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     cursor: pointer;
     font-size: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all var(--transition);
-    color: var(--text-primary);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    color: var(--text-muted);
     flex-shrink: 0;
+    position: relative;
+}
+
+/* Лёгкий фон при наведении */
+.export-import-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: var(--accent-color);
+    opacity: 0;
+    transform: scale(0.5);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: -1;
+}
+
+.export-import-btn:hover::after {
+    opacity: 0.1;
+    transform: scale(1);
 }
 
 .export-import-btn:hover {
-    transform: scale(1.08);
-    background: var(--accent-color);
-    color: white;
-    border-color: var(--accent-color);
+    transform: translateY(-2px) scale(1.05);
+    color: var(--accent-color);
 }
 
+/* Кнопка экспорта — зелёный акцент */
 .export-import-btn#exportDataBtn:hover {
-    background: #27ae60;
-    border-color: #27ae60;
+    color: #27ae60;
 }
 
+.export-import-btn#exportDataBtn:hover::after {
+    background: #27ae60;
+    opacity: 0.12;
+}
+
+/* Кнопка импорта — синий акцент */
 .export-import-btn#importDataBtn:hover {
+    color: #2980b9;
+}
+
+.export-import-btn#importDataBtn:hover::after {
     background: #2980b9;
-    border-color: #2980b9;
+    opacity: 0.12;
+}
+
+/* Адаптив для мобильных */
+@media (max-width: 600px) {
+    .export-import-btn {
+        width: 38px;
+        height: 38px;
+        font-size: 17px;
+    }
 }
 }
