@@ -1527,4 +1527,25 @@ body.dark-theme .menu-toggle:hover {
         font-size: 0.8em;
         padding: 6px 12px;
     }
+    /* ========== ФОРМА ОТЗЫВА ========== */
+.rating-star {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--text-muted);
+}
+
+.rating-star:hover {
+    transform: scale(1.2);
+}
+
+.rating-star.active {
+    color: #ffd700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+/* Адаптив для формы отзыва */
+@media (max-width: 600px) {
+    .rating-star {
+        font-size: 24px;
+    }
 }
