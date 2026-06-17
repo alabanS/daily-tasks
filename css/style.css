@@ -1257,7 +1257,7 @@ body {
     .links-sidebar {
         max-height: 200px;
     }
-/* ========== КНОПКИ ЭКСПОРТА/ИМПОРТА ========== */
+/* ========== КНОПКИ ЭКСПОРТА/ИМПОРТА И ДОНАТОВ ========== */
 .export-import-btn {
     background: transparent;
     border: none;
@@ -1265,57 +1265,63 @@ body {
     height: 44px;
     border-radius: 50%;
     cursor: pointer;
-    font-size: 20px;
+    font-size: 22px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.3s ease;
     color: var(--text-muted);
     flex-shrink: 0;
-    position: relative;
+    text-decoration: none !important;
 }
 
-/* Лёгкий фон при наведении */
-.export-import-btn::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    background: var(--accent-color);
-    opacity: 0;
-    transform: scale(0.5);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: -1;
-}
-
-.export-import-btn:hover::after {
-    opacity: 0.1;
-    transform: scale(1);
-}
-
+/* Анимация увеличения при наведении */
 .export-import-btn:hover {
-    transform: translateY(-2px) scale(1.05);
-    color: var(--accent-color);
+    transform: scale(1.15);
 }
 
-/* Кнопка экспорта — зелёный акцент */
-.export-import-btn#exportDataBtn:hover {
+/* Сердечко — краснеет и пульсирует при наведении */
+.donate-btn {
+    transition: all 0.3s ease;
+}
+
+.donate-btn:hover {
+    color: #ff6b6b;
+    transform: scale(1.15);
+    animation: heartBeat 0.6s ease;
+}
+
+/* Анимация пульсации */
+@keyframes heartBeat {
+    0% { transform: scale(1); }
+    15% { transform: scale(1.3); }
+    30% { transform: scale(1); }
+    45% { transform: scale(1.15); }
+    60% { transform: scale(1); }
+    100% { transform: scale(1); }
+}
+
+/* Экспорт — зелёный */
+#exportDataBtn:hover {
     color: #27ae60;
 }
 
-.export-import-btn#exportDataBtn:hover::after {
-    background: #27ae60;
-    opacity: 0.12;
-}
-
-/* Кнопка импорта — синий акцент */
-.export-import-btn#importDataBtn:hover {
+/* Импорт — синий */
+#importDataBtn:hover {
     color: #2980b9;
 }
 
-.export-import-btn#importDataBtn:hover::after {
-    background: #2980b9;
-    opacity: 0.12;
+/* Тёмная тема */
+body.dark-theme .export-import-btn {
+    color: #b0b0c8;
+}
+
+body.dark-theme .export-import-btn:hover {
+    color: var(--accent-color);
+}
+
+body.dark-theme .donate-btn:hover {
+    color: #ff6b6b;
 }
 
 /* Адаптив для мобильных */
@@ -1326,4 +1332,4 @@ body {
         font-size: 17px;
     }
 }
-}
+
