@@ -265,5 +265,20 @@
     <script src="js/tasks.js"></script>
     <script src="js/links.js"></script>
     <script src="js/notes.js"></script>
+    <script>
+    const donateBtn = document.querySelector('.donate-btn');
+    
+    donateBtn.addEventListener('mouseenter', function() {
+        this.querySelector('.heart-default').style.display = 'none';
+        this.querySelector('.heart-hover').style.display = 'inline-block';
+        this.querySelector('.heart-hover').style.animation = 'heartBeat 0.6s ease';
+    });
+    
+    donateBtn.addEventListener('mouseleave', function() {
+        this.querySelector('.heart-default').style.display = 'inline-block';
+        this.querySelector('.heart-hover').style.display = 'none';
+        this.querySelector('.heart-hover').style.animation = '';
+    });
+</script>
 </body>
 </html>
