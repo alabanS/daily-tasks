@@ -135,12 +135,15 @@ const Links = {
             if (idx === -1) return false;
             this._data.links[idx] = { ...this._data.links[idx], ...data };
         } else {
+            // Убеждаемся, что categoryId - это строка или null
+            const categoryId = data.categoryId && data.categoryId !== '' ? data.categoryId : null;
+            
             this._data.links.push({
                 id: Store.generateId(),
                 title: data.title.trim(),
                 url: data.url.trim(),
                 desc: (data.desc || '').trim(),
-                categoryId: data.categoryId || null,
+                categoryId: categoryId,
                 createdAt: new Date().toISOString()
             });
         }
@@ -404,8 +407,18 @@ const Links = {
         document.getElementById('linkTitle').value = link ? link.title : '';
         document.getElementById('linkUrl').value = link ? link.url : '';
         document.getElementById('linkDesc').value = link ? link.desc || '' : '';
-        document.getElementById('linkCategoryId').value = link ? link.categoryId || categoryId : categoryId || this
-            ._selectedCategoryId || '';
+        
+        // Определяем categoryId для формы
+        let selectedCategoryId = null;
+        if (link) {
+            selectedCategoryId = link.categoryId || '';
+        } else if (categoryId) {
+            selectedCategoryId = categoryId;
+        } else if (this._selectedCategoryId) {
+            selectedCategoryId = this._selectedCategoryId;
+        }
+        document.getElementById('linkCategoryId').value = selectedCategoryId || '';
+        
         document.getElementById('linkFormTitle').textContent = link ? '✏️ Редактировать ссылку' : '🔗 Новая ссылка';
         document.getElementById('linkFormSubmit').textContent = link ? 'Сохранить' : 'Добавить';
 
@@ -465,12 +478,20 @@ const Links = {
             if (!title) { Toast.show('Введите название!', 'warning'); return; }
             if (!url) { Toast.show('Введите URL!', 'warning'); return; }
             const editId = document.getElementById('editLinkId').value;
+            
+            // Получаем categoryId и убеждаемся, что это строка или null
+            let categoryId = document.getElementById('linkCategoryId').value;
+            // Если пустая строка или undefined - ставим null
+            if (!categoryId || categoryId === '') {
+                categoryId = null;
+            }
+            
             const data = {
                 id: editId || undefined,
                 title,
                 url,
                 desc: document.getElementById('linkDesc').value.trim(),
-                categoryId: document.getElementById('linkCategoryId').value || null
+                categoryId: categoryId
             };
             if (this.saveLink(data)) {
                 this._closeLinkForm();
