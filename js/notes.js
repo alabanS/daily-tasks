@@ -16,11 +16,11 @@ const Notes = {
     saveNote(data) {
         const isEdit = !!data.id;
         if (isEdit) {
-            const idx = this.notes.findIndex(n => n.id === data.id);
+            const idx = this._data.notes.findIndex(n => n.id === data.id);
             if (idx === -1) return false;
-            this.notes[idx] = { ...this.notes[idx], ...data };
+            this._data.notes[idx] = { ...this._data.notes[idx], ...data };
         } else {
-            this.notes.unshift({
+            this._data.notes.unshift({
                 id: Store.generateId(),
                 title: data.title.trim(),
                 content: (data.content || '').trim(),
@@ -36,9 +36,9 @@ const Notes = {
 
     deleteNote(id) {
         if (!confirm('Удалить заметку?')) return false;
-        const idx = this.notes.findIndex(n => n.id === id);
+        const idx = this._data.notes.findIndex(n => n.id === id);
         if (idx === -1) return false;
-        this.notes.splice(idx, 1);
+        this._data.notes.splice(idx, 1);
         if (Store.save(this._data)) {
             this.render();
             Toast.show('Заметка удалена', 'info');
@@ -48,12 +48,12 @@ const Notes = {
     },
 
     getById(id) {
-        return this.notes.find(n => n.id === id) || null;
+        return this._data.notes.find(n => n.id === id) || null;
     },
 
     render() {
         const grid = document.getElementById('notesGrid');
-        const notes = this.notes;
+        const notes = this._data.notes;
 
         if (notes.length === 0) {
             grid.innerHTML = `
@@ -75,7 +75,7 @@ const Notes = {
                     <div class="note-content">${this._escape(note.content || '')}</div>
                     <div class="note-meta">
                         <span>📅 ${date}</span>
-                        <span>#${this.notes.indexOf(note) + 1}</span>
+                        <span>#${notes.indexOf(note) + 1}</span>
                     </div>
                     <div class="note-actions">
                         <button class="edit-btn" data-id="${note.id}" title="Редактировать">✏️</button>
@@ -150,7 +150,7 @@ const Notes = {
     },
 
     _exportNotes() {
-        const notes = this.notes;
+        const notes = this._data.notes;
         if (notes.length === 0) { Toast.show('Нет заметок для экспорта', 'warning'); return; }
 
         const data = [
